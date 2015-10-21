@@ -4,4 +4,4 @@ dwmstatus: dwmstatus.c
 clean:
 	$(RM) dwmstatus
 
-.PHONY: lcean
+.PHONY: clean
