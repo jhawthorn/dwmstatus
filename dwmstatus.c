@@ -49,6 +49,10 @@ static int battery_get_percent(battery_info_t bat) {
 	}
 }
 
+static int battery_get_time_remaining(battery_info_t bat, int power_now) {
+	return lrint(bat.energy_now * 60.0 / power_now);
+}
+
 int main(void) {
 	static Display *dpy;
 	char status[256];
@@ -65,9 +69,16 @@ int main(void) {
 		battery_info_t bat0 = battery_get_info(0);
 		battery_info_t bat1 = battery_get_info(1);
 
-		len += snprintf(status + len, sizeof status, " %d%% %d%% | ",
+		int power_now = bat0.power_now ? bat0.power_now : bat1.power_now;
+
+		len += snprintf(status + len, sizeof status - len, " %d%% %d%% ",
 				battery_get_percent(bat0),
 				battery_get_percent(bat1));
+
+		int minutes_remaining = battery_get_time_remaining(bat0, power_now) + battery_get_time_remaining(bat1, power_now);
+
+		len += snprintf(status + len, sizeof status - len, "%d:%d | ",
+				minutes_remaining / 60, minutes_remaining % 60);
 
 		time_t current_time = time(NULL);
 		struct tm *current_tm = localtime(&current_time);
