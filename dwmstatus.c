@@ -96,7 +96,7 @@ int main(void) {
 		XStoreName(dpy, DefaultRootWindow(dpy), status);
 		XFlush(dpy);
 
-		sleep(60 - current_tm->tm_sec);
+		sleep(5);
 	}
 
 	XCloseDisplay(dpy);
