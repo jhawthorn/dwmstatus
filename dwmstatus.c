@@ -18,17 +18,31 @@ static int freadint(const char *filename){
 	return ret;
 }
 
-static int get_battery_percent(int battery_id) {
-	int energy_now, energy_full;
+typedef struct {
+	int energy_now;
+	int energy_full;
+	int power_now;
+} battery_info_t;
+
+static battery_info_t battery_get_info(int battery_id) {
 	char path[256];
 
+	battery_info_t info;
+
 	snprintf(path, sizeof path, "/sys/class/power_supply/BAT%i/energy_now", battery_id);
-	energy_now = freadint(path);
+	info.energy_now = freadint(path);
 
 	snprintf(path, sizeof path, "/sys/class/power_supply/BAT%i/energy_full", battery_id);
-	energy_full = freadint(path);
+	info.energy_full = freadint(path);
 
-	return lrint(energy_now * 100.0 / energy_full);
+	snprintf(path, sizeof path, "/sys/class/power_supply/BAT%i/power_now", battery_id);
+	info.power_now = freadint(path);
+
+	return info;
+}
+
+static int battery_get_percent(battery_info_t bat) {
+	return lrint(bat.energy_now * 100.0 / bat.energy_full);
 }
 
 int main(void) {
@@ -43,9 +57,13 @@ int main(void) {
 	int i;
 	for (i = 0;; i++) {
 		int len = 0;
+
+		battery_info_t bat0 = battery_get_info(0);
+		battery_info_t bat1 = battery_get_info(1);
+
 		len += snprintf(status + len, sizeof status, " %d%% %d%% | ",
-				get_battery_percent(0),
-				get_battery_percent(1));
+				battery_get_percent(bat0),
+				battery_get_percent(bat1));
 
 		time_t current_time = time(NULL);
 		struct tm *current_tm = localtime(&current_time);
