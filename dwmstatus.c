@@ -11,7 +11,7 @@ static int freadint(const char *filename){
 	FILE *file = fopen(filename, "r");
 	if(!file) {
 		fprintf(stderr, "Error opening %s.\n", filename);
-		return -1;
+		return 0;
 	}
 	fscanf(file, "%d", &ret);
 	fclose(file);
@@ -42,7 +42,11 @@ static battery_info_t battery_get_info(int battery_id) {
 }
 
 static int battery_get_percent(battery_info_t bat) {
-	return lrint(bat.energy_now * 100.0 / bat.energy_full);
+	if(bat.energy_full) {
+		return lrint(bat.energy_now * 100.0 / bat.energy_full);
+	} else {
+		return 0;
+	}
 }
 
 int main(void) {
