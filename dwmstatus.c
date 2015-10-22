@@ -53,6 +53,25 @@ static int battery_get_time_remaining(battery_info_t bat, int power_now) {
 	return lrint(bat.energy_now * 60.0 / power_now);
 }
 
+static int snprintf_battery_status(char *status, int max) {
+	int len = 0;
+	battery_info_t bat0 = battery_get_info(0);
+	battery_info_t bat1 = battery_get_info(1);
+
+	int power_now = bat0.power_now ? bat0.power_now : bat1.power_now;
+
+	len += snprintf(status + len, max - len, " %d%% %d%% ",
+			battery_get_percent(bat0),
+			battery_get_percent(bat1));
+
+	int minutes_remaining = battery_get_time_remaining(bat0, power_now) + battery_get_time_remaining(bat1, power_now);
+
+	len += snprintf(status + len, max - len, "%d:%.2d | ",
+			minutes_remaining / 60, minutes_remaining % 60);
+
+	return len;
+}
+
 int main(void) {
 	static Display *dpy;
 	char status[256];
@@ -65,25 +84,14 @@ int main(void) {
 	int i;
 	for (i = 0;; i++) {
 		int len = 0;
+		int max = sizeof status;
 
-		battery_info_t bat0 = battery_get_info(0);
-		battery_info_t bat1 = battery_get_info(1);
-
-		int power_now = bat0.power_now ? bat0.power_now : bat1.power_now;
-
-		len += snprintf(status + len, sizeof status - len, " %d%% %d%% ",
-				battery_get_percent(bat0),
-				battery_get_percent(bat1));
-
-		int minutes_remaining = battery_get_time_remaining(bat0, power_now) + battery_get_time_remaining(bat1, power_now);
-
-		len += snprintf(status + len, sizeof status - len, "%d:%.2d | ",
-				minutes_remaining / 60, minutes_remaining % 60);
+		len += snprintf_battery_status(status + len, max - len);
 
 		time_t current_time = time(NULL);
 		struct tm *current_tm = localtime(&current_time);
 
-		strftime(status + len, sizeof status - len, "%F %H:%M", current_tm);
+		strftime(status + len, max - len, "%F %H:%M", current_tm);
 
 		XStoreName(dpy, DefaultRootWindow(dpy), status);
 		XFlush(dpy);
