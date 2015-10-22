@@ -1,6 +1,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <time.h>
 #include <X11/Xlib.h>
@@ -18,10 +19,37 @@ static int freadint(const char *filename){
 	return ret;
 }
 
+typedef enum {
+	NONE,
+	UNKNOWN,
+	DISCHARGING,
+	CHARGING
+} battery_status_t;
+
+/* Open a file and read an integer */
+static battery_status_t fread_battery_status(const char *filename){
+	char buf[16];
+	FILE *file = fopen(filename, "r");
+	if(!file) {
+		fprintf(stderr, "Error opening %s.\n", filename);
+		return NONE;
+	}
+	fgets(buf, 16, file);
+	fclose(file);
+	if(!strcmp(buf, "Charging\n")) {
+		return CHARGING;
+	} else if(!strcmp(buf, "Discharging\n")) {
+		return DISCHARGING;
+	} else {
+		return UNKNOWN;
+	}
+}
+
 typedef struct {
 	int energy_now;
 	int energy_full;
 	int power_now;
+	battery_status_t status;
 } battery_info_t;
 
 static battery_info_t battery_get_info(int battery_id) {
@@ -37,6 +65,9 @@ static battery_info_t battery_get_info(int battery_id) {
 
 	snprintf(path, sizeof path, "/sys/class/power_supply/BAT%i/power_now", battery_id);
 	info.power_now = freadint(path);
+
+	snprintf(path, sizeof path, "/sys/class/power_supply/BAT%i/status", battery_id);
+	info.status = fread_battery_status(path);
 
 	return info;
 }
@@ -60,16 +91,32 @@ static int status_battery(char *status, int max) {
 
 	int power_now = bat0.power_now ? bat0.power_now : bat1.power_now;
 
-	len += snprintf(status + len, max - len, " %d%% %d%% ",
+	len += snprintf(status + len, max - len, "%d%% %d%% ",
 			battery_get_percent(bat0),
 			battery_get_percent(bat1));
 
+	int charging = bat0.status == CHARGING || bat1.status == CHARGING;
 	int minutes_remaining = battery_get_time_remaining(bat0, power_now) + battery_get_time_remaining(bat1, power_now);
 
-	len += snprintf(status + len, max - len, "%d:%.2d | ",
-			minutes_remaining / 60, minutes_remaining % 60);
+	if(charging) {
+		len += snprintf(status + len, max - len, "Charging");
+	} else {
+		len += snprintf(status + len, max - len, "%d:%.2d",
+				minutes_remaining / 60, minutes_remaining % 60);
+	}
 
 	return len;
+}
+
+static int status_separator(char *status, int max) {
+	return snprintf(status, max, " | ");
+}
+
+static int status_time(char *status, int max) {
+	time_t current_time = time(NULL);
+	struct tm *current_tm = localtime(&current_time);
+
+	return strftime(status, max, "%F %H:%M", current_tm);
 }
 
 int main(void) {
@@ -86,12 +133,11 @@ int main(void) {
 		int len = 0;
 		int max = sizeof status;
 
+		len += snprintf(status, max, " ");
+
 		len += status_battery(status + len, max - len);
-
-		time_t current_time = time(NULL);
-		struct tm *current_tm = localtime(&current_time);
-
-		strftime(status + len, max - len, "%F %H:%M", current_tm);
+		len += status_separator(status + len, max - len);
+		len += status_time(status + len, max - len);
 
 		XStoreName(dpy, DefaultRootWindow(dpy), status);
 		XFlush(dpy);
