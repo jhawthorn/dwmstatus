@@ -77,7 +77,7 @@ int main(void) {
 
 		int minutes_remaining = battery_get_time_remaining(bat0, power_now) + battery_get_time_remaining(bat1, power_now);
 
-		len += snprintf(status + len, sizeof status - len, "%d:%d | ",
+		len += snprintf(status + len, sizeof status - len, "%d:%.2d | ",
 				minutes_remaining / 60, minutes_remaining % 60);
 
 		time_t current_time = time(NULL);
