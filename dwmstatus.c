@@ -1,3 +1,4 @@
+#define _DEFAULT_SOURCE
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -119,6 +120,13 @@ static int status_time(char *status, int max) {
 	return strftime(status, max, "%F %H:%M", current_tm);
 }
 
+static int status_load(char *status, int max) {
+	double loadavg[3];
+	getloadavg(loadavg, 3);
+
+	return snprintf(status, max, "%.2f %.2f %.2f", loadavg[0], loadavg[1], loadavg[2]);
+}
+
 int main(void) {
 	static Display *dpy;
 	char status[256];
@@ -135,6 +143,8 @@ int main(void) {
 
 		len += snprintf(status, max, " ");
 
+		len += status_load(status + len, max - len);
+		len += status_separator(status + len, max - len);
 		len += status_battery(status + len, max - len);
 		len += status_separator(status + len, max - len);
 		len += status_time(status + len, max - len);
