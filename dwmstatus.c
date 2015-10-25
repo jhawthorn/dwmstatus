@@ -127,6 +127,17 @@ static int status_load(char *status, int max) {
 	return snprintf(status, max, "%.2f %.2f %.2f", loadavg[0], loadavg[1], loadavg[2]);
 }
 
+typedef int (*status_func_t)(char *, int);
+
+static status_func_t status_segments[] = {
+	status_load,
+	status_separator,
+	status_battery,
+	status_separator,
+	status_time,
+	NULL
+};
+
 int main(void) {
 	static Display *dpy;
 	char status[256];
@@ -136,18 +147,15 @@ int main(void) {
 		return 1;
 	}
 
-	int i;
-	for (i = 0;; i++) {
+	for(;;) {
 		int len = 0;
 		int max = sizeof status;
 
 		len += snprintf(status, max, " ");
 
-		len += status_load(status + len, max - len);
-		len += status_separator(status + len, max - len);
-		len += status_battery(status + len, max - len);
-		len += status_separator(status + len, max - len);
-		len += status_time(status + len, max - len);
+		for(int i = 0; status_segments[i]; i++) {
+			len += status_segments[i](status + len, max - len);
+		}
 
 		XStoreName(dpy, DefaultRootWindow(dpy), status);
 		XFlush(dpy);
@@ -155,6 +163,7 @@ int main(void) {
 		sleep(5);
 	}
 
+	/* FIXME: unreachable */
 	XCloseDisplay(dpy);
 
 	return 0;
